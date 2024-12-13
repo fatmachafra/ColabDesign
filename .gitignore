@@ -1,2 +1,11 @@
 **/.DS_Store
 *.pyc
+af/examples/cpu_test
+af/examples/weights_test_*.csv
+alphafold_params_2022-12-06.tar
+af/examples/cdr_gen_*.out
+af/examples/cdr_gen_*.err
+af/examples/nb_cdr_generation_soft_*.py
+af/examples/submission_soft_*.sh
+af/examples/params
+af/examples/colabdesign
