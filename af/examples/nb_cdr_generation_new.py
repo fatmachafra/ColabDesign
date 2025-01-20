@@ -1,7 +1,16 @@
+import os
+import sys
+
+# Add the path to your colabdesign environment's site-packages
+sys.path.append('/usr/users/fatma.chafra01/miniforge3/envs/colabdesign/lib/python3.10/site-packages')
+print(sys.executable)
+print('----------')
 import argparse
 parser = argparse.ArgumentParser(description='Running AF-Design for CDR diversification/optimization')
-parser.add_argument("-f", '--file', default='/usr/users/fatma.chafra01/ColabDesign/8EE2_antigen_4A_contact.pdb')
-parser.add_argument("-o", '--optimizer', help='optimizer type for starting the backpropagation from logit, softmax, one-hot etc.')
+parser.add_argument("-f", '--file')
+parser.add_argument("-id", '--pdb_id', help='pdb_id string in lowercase')
+parser.add_argument("-ad", '--additional_description', help='description like 4A_contact with _ instead of space')
+parser.add_argument("-o", '--optimizer', help='optimizer type for starting the backpropagation from ["pssm_semigreedy", "3stage", "semigreedy", "pssm", "logits", "soft", "hard"]')
 parser.add_argument("-g", '--gd', help='optimizer type for the backpropagation (GD_method)')
 parser.add_argument("-l", '--logit', default='0')
 parser.add_argument("-s", '--soft')
@@ -9,23 +18,30 @@ parser.add_argument("-d", '--hard')
 parser.add_argument("-r", '--learning_rate', default=0.01)
 parser.add_argument("-n", '--num_models', default=1)
 parser.add_argument("-w", '--weights', help='text of comma separated weights in the order of con, dgram_cce, exp_res, fape, helix, i_con, i_pae, pae, plddt, rmsd, seq_ent')
+parser.add_argument("-c", '--recycles', default=0)
+parser.add_argument("-e", '--cores', default=38)
+parser.add_argument("-t", '--use_templates', default=True)
+parser.add_argument("-x", '--rm_template_ic', default=False)
+parser.add_argument("-b", '--bias', default=True)
+parser.add_argument("-m", '--bias_matrix', help='bias matrix to be used if bias=True. Naming convention: bias_matrix_pdb.csv')
+parser.add_argument("-a", '--antigen_target', help='chain name of the antigen target, capitalized')
+parser.add_argument("-nb", '--nb_binder', help='chain name of the nb binder, capitalized')
+parser.add_argument("-q", '--nb_binder_seq', help='string of the nb sequence that is associated with a structure in the file')
 args = parser.parse_args()
-
+print(args)
+print('----------')
+order_weights = ['con', 'dgram_cce', 'exp_res', 'fape', 'helix', 'i_con', 'i_pae', 'pae', 'plddt', 'rmsd', 'seq_ent']
 with open(args.weights, 'r') as file:
-  weights_parameters = file.readline().strip().split(',')
+  weights_list = file.readline().strip().split(',')
 
-print('weights parameters', weights_parameters)
-
-import sys
-pdb = (args.file).split('/')[5].split('_')[0]
-filename = f"{pdb}_antigen_4A_contact_{args.optimizer}_{args.gd}_{args.logit}_{args.soft}_{args.hard}_{args.learning_rate}_{args.num_models}_weights_{'_'.join(weights_parameters)}_c62.pdb"
-# Open a file to write logs
-#with open(filename, 'w') as f:
-    # Redirect stdout to the file
-#    sys.stdout = f
-
-
-import os
+print('weights list:', weights_list)
+weights_dict = {k : float(val) for k, val in zip(order_weights, weights_list)}
+print('----------')
+pdb = args.pdb_id
+weights_rounded = [str(round(float(weight),3)) for weight in weights_list]
+filename = f"{pdb}/{pdb}_{args.additional_description}_{args.optimizer}_{args.gd}_{args.logit}_{args.soft}_{args.hard}_{args.learning_rate}_models_{args.num_models}_weights_{'_'.join(weights_rounded)}_c{args.cores}_use_templates_{args.use_templates}_rm_template_ic_{args.rm_template_ic}_bias_{args.bias}_num_recycles_{args.recycles}.pdb"
+print('PDB filename of final output:', filename)
+print('----------')
 # set working directory
 try:
     os.chdir('/usr/users/fatma.chafra01/ColabDesign/af')
@@ -40,9 +56,9 @@ import re
 
 from colabdesign import mk_afdesign_model, clear_mem
 from colabdesign.shared.utils import copy_dict
-from colabdesign.af.alphafold.common import residue_constants
+#from colabdesign.af.alphafold.common import residue_constants
 
-from IPython.display import HTML
+#from IPython.display import HTML
 import numpy as np
 
 import time
@@ -54,11 +70,11 @@ os.chdir('/usr/users/fatma.chafra01/ColabDesign/af/examples')
 print(os.getcwd())
 
 # prep inputs
-target_chain = "A" #@param {type:"string"}
+# target_chain = "A" #@param {type:"string"}
+target_chain = args.antigen_target #@param {type:"string"}
 target_hotspot = "" #@param {type:"string"}
 if target_hotspot == "": target_hotspot = None
-# specifies positions in binder (chain B) that should remain fixed during
-# redesign
+# specifies positions in binder (chain B) that should remain fixed during redesign
 
 pos = "" #@param {type:"string"}
 pos = re.sub("[^0-9,]", "", pos)
@@ -69,9 +85,9 @@ target_flexible = False #@param {type:"boolean"}
 
 #@markdown ---
 #@markdown **binder info**
-binder_len = 102 #@param {type:"integer"}
+binder_len = 102 #@param {type:"integer"} # ignored if binder_chain is defined (in ColabDesign/colabdesign/af/prep.py)
 #@markdown - length of binder to hallucination
-binder_seq = "" #@param {type:"string"}
+binder_seq = args.nb_binder_seq #@param {type:"string"}
 binder_seq = re.sub("[^A-Z]", "", binder_seq.upper())
 if len(binder_seq) > 0:
   binder_len = len(binder_seq)
@@ -79,7 +95,8 @@ else:
   binder_seq = None
 #@markdown - if defined, will initialize design with this sequence
 
-binder_chain = "C" #@param {type:"string"}
+# binder_chain = "C" #@param {type:"string"}
+binder_chain = args.nb_binder #@param {type:"string"}
 if binder_chain == "": binder_chain = None
 #@markdown - if defined, supervised loss is used (binder_len is ignored)
 
@@ -89,8 +106,8 @@ fix_seq = True #@param {type:"boolean"}
 #@markdown **model config**
 use_multimer = True #@param {type:"boolean"}
 #@markdown - use alphafold-multimer for design
-num_recycles = 0 #@param ["0", "1", "3", "6"] {type:"raw"}
-num_models = str(args.num_models) #@param ["1", "2", "3", "4", "5", "all"]
+num_recycles = int(args.recycles) #@param ["0", "1", "3", "6"] {type:"raw"}
+num_models = int(args.num_models) #@param ["1", "2", "3", "4", "5", "all"]
 num_models = 5 if num_models == "all" else int(num_models)
 #@markdown - number of trained models to use during optimization
 
@@ -109,74 +126,76 @@ x = {"pdb_filename":pdb,
 x["pdb_filename"] = args.file
 
 #if "x_prev" not in dir() or x != x_prev:
+use_templates = args.use_templates == 'True'
+print('use_templates:', use_templates)
+rm_template_ic = args.rm_template_ic == 'True'
+print('rm_template_ic:', rm_template_ic)
+print('----------')
+
 clear_mem()
 model = mk_afdesign_model(protocol="binder",
                           use_multimer=x["use_multimer"],
                           num_recycles=num_recycles,
-                          recycle_mode="sample")
+                          recycle_mode="sample", use_templates=use_templates)
 model.prep_inputs(**x,
-                  ignore_missing=False)
+                  ignore_missing=False, rm_template_ic=rm_template_ic, use_binder_template=True)
 x_prev = copy_dict(x)
 print("target length:", model._target_len)
 print("binder length:", model._binder_len)
 binder_len = model._binder_len
-
+print('----------')
 # print out default model parameters
 # model weights
 print('default weights', model.opt["weights"].keys())
 for keys in model.opt["weights"].keys():
     print(f'{keys}', model.opt["weights"][keys])
-
-# forming the bias matrix to fix the nb core positions
-# after modiying the pdb file, the aa seq got truncated so had to change the intervals from (1, 27), (35,53), (59,99), (112,121) to:
-fix_pos = [(19, 27), (35,53), (59,99), (112,120)]
-seq = 'MAEVQLVESGGGLVQPGGSLRLSCTTSTSLFSITTMGWYRQAPGKQRELVASIKRGGGTNYADSMKGRFTISRDNARNTVFLEMNNLTTEDTAVYYCNAAILAYTGEVTNYWGQGTQVTV'
-# make sure to also delete the last part that is not in the structure from the original sequence because it will not be present in the later generated sequence
-print('seq length', len(seq))
-# instead trying to make a bias matrix as suggested here: https://github.com/sokrypton/ColabDesign/issues/107
-print(model._binder_len)
-bias = np.zeros((model._binder_len,20))
-for item in fix_pos:
-  start = item[0] -1
-  end = item[1] -1
-  print(start, end)
-  while start <= end:
-    aa = seq[start]
-    print(start, aa)
-    start += 1
-    # because the index changed once the pdb file was truncated
-    bias[start-19,residue_constants.restype_order[str(aa)]] = 1e8
-    print(f'bias added to:{start-19} as {aa}')
-print('bias matrix', bias)
-
-# check whether the bias matrix makes sense by randomly printing out a row that has to contain a serine (pos 19 according to prev numbering, now pos 19 - 19 so 0)
-# I don't know the order of the one hot but it is not exactly the alphabetically ordered classical one hot
-def find_rows_without_value(arr, value):
-    # Check each row for the presence of the value
-    rows_with_value = np.any(np.isclose(arr, value), axis=1)
-
-    # Get the indices of rows that don't have the value
-    rows_without_value = np.where(~rows_with_value)[0]
-
-    return rows_without_value
-
-print("Rows without 1.0e+08 in bias matrix:", find_rows_without_value(bias, 1.0e+08))
-
-# restart model before running the optimizer because without it will be using the modified weights from the previous round (as the model is not created again)
-model.restart(seq=binder_seq)
-model.set_seq(bias=bias)
-# i_pae and i_con 2.0, rest 1.0
-model.opt["weights"].update({"i_con": 2.0, "i_pae": 2.0, "con": 0.5, "dgram_cce": 10.0, "exp_res": 1.0, "fape": 0.1, "pae": 10.0, "plddt": 10.0, "rmsd": 20.0, "seq_ent": 1.0})
 print('----------')
-weights_list = []
+
+# this is not supposed to work but anyways
+print('Former seed/key:', model.key())
+model.set_seed(123324)
+print('Set seed/key:', model.key())
+print('----------')
+
+# restart model before running the optimizer because without it will be using the modified weights from the previous round (reset_opt = False)
+print('setting seed with model.restart(seed=123324). the previous setting of seed usually does not work!')
+model.restart(seq=binder_seq, seed=123324, reset_opt=False)
+print('----------')
+print('type args.bias:', type(args.bias))
+print('args.bias:', args.bias)
+print('args.bias == True', args.bias == True)
+print('args.bias == True as string', args.bias == 'True')
+print('----------')
+if args.bias == 'True': # because the system arguments are considered as strings so saying args.bias == True leads to the evaluation of else all the time!! 
+  print('bias = True continuing with a bias matrix')
+  try:
+    bias = np.loadtxt(args.bias_matrix, delimiter=',')
+    print("Shape of the bias matrix:", bias.shape)
+    print('The bias matrix:\n', bias)
+    if bias.shape == (model._binder_len,20):
+      print('Bias matrix shape is appropriate')
+      model.set_seq(bias=bias)
+    else:
+      raise ValueError(f"Bias matrix shape is incorrect. Expected ({model._binder_len}, 20), but got {bias.shape}")
+  except:
+    print('Bias matrix not found')
+else:
+  print('bias = False continuing without bias matrix')
+print('----------')
+# set weights
+# in the order of con, dgram_cce, exp_res, fape, helix, i_con, i_pae, pae, plddt, rmsd, seq_ent
+model.opt["weights"].update(weights_dict)
+print('----------')
+print('New weights:')
 for keys in model.opt["weights"].keys():
   print(f'{keys}', model.opt["weights"][keys])
-  weights_list.append(keys)
 print('----------')
 print(model.opt.keys())
-# bias is not a key of model.opt so don't know how to access it
-print('bias matrix added to model', model._inputs["bias"])
+
+# bias is not a key of model.opt so access it from model._inputs
+print('bias matrix of model', model._inputs["bias"])
 # has the bias matrix associated with the model!
+print('----------')
 
 #@title **run AfDesign**
 from scipy.special import softmax
@@ -219,7 +238,8 @@ print('running optimizer method:', optimizer)
 start_time = time.time()
 print('start', start_time)
 if optimizer == "3stage":
-  model.design_3stage(120, 60, 10, **flags)
+  #model.design_3stage(120, 60, 10, **flags)
+  model.design_3stage(logit, soft, hard, **flags)
   pssm = softmax(model._tmp["seq_logits"],-1)
 
 if optimizer == "pssm_semigreedy":
