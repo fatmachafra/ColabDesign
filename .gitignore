@@ -11,3 +11,8 @@ af/examples/nb_cdr_generation_soft_*.py
 af/examples/submission_*.sh
 af/examples/params
 af/examples/colabdesign
+af/examples/8ee2/*
+af/examples/8ee2_2/*
+af/examples/initial_runs_pdbs/*
+af/examples/old_*/*
+af/examples/8ee2_*.sh
