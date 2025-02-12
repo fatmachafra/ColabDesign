@@ -51,7 +51,7 @@ def to_float(x):
   else: x = float(x)
   return x
 
-def dict_to_str(x, filt=None, keys=None, ok=None, print_str=None, f=2):
+def dict_to_str(x, filt=None, keys=None, ok=None, print_str=None, f=5):
   '''convert dictionary to string for print out'''  
   if keys is None: keys = []
   if filt is None: filt = {}

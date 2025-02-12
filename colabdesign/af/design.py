@@ -241,7 +241,7 @@ class _af_design:
         aux["log"].pop("i_ptm")
 
     print(dict_to_str(aux["log"], filt=self.opt["weights"],
-                      print_str=print_str, keys=keys+["rmsd"], ok=["plddt","rmsd"]))
+                      print_str=print_str, keys=keys+["rmsd"], ok=["plddt","rmsd"], f=5))
 
   def _save_results(self, aux=None, save_best=False,
                     best_metric=None, metric_higher_better=False,
@@ -271,7 +271,7 @@ class _af_design:
         self._tmp["best"]["metric"] = metric
 
     if verbose and ((self._k+1) % verbose) == 0:
-      self._print_log(f"{self._k+1}", aux=aux)
+      self._print_log(f"{self._k+1}", aux=aux, f=5)
 
   def predict(self, seq=None, bias=None,
               num_models=None, num_recycles=None, models=None, sample_models=False,

@@ -9,6 +9,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Running AF-Design for CDR diversification/optimization')
 parser.add_argument("-f", '--file')
 parser.add_argument("-id", '--pdb_id', help='pdb_id string in lowercase')
+parser.add_argument("-dir", "--output_dir", default = '/usr/users/fatma.chafra01/ColabDesign/af/examples', help="absolute path that would contain the pdb_id/pdb_id_.pdb file")
 parser.add_argument("-ad", '--additional_description', help='description like 4A_contact with _ instead of space')
 parser.add_argument("-o", '--optimizer', help='optimizer type for starting the backpropagation from ["pssm_semigreedy", "3stage", "semigreedy", "pssm", "logits", "soft", "hard"]')
 parser.add_argument("-g", '--gd', help='optimizer type for the backpropagation (GD_method)')
@@ -23,7 +24,7 @@ parser.add_argument("-e", '--cores', default=38)
 parser.add_argument("-t", '--use_templates', default=True)
 parser.add_argument("-x", '--rm_template_ic', default=False)
 parser.add_argument("-b", '--bias', default=True)
-parser.add_argument("-m", '--bias_matrix', help='bias matrix to be used if bias=True. Naming convention: bias_matrix_pdb.csv')
+parser.add_argument("-m", '--bias_matrix', help='bias matrix to be used if bias=True. Naming convention: <abspath>/bias_matrix/bias_matrix_pdb.csv')
 parser.add_argument("-a", '--antigen_target', help='chain name of the antigen target, capitalized')
 parser.add_argument("-nb", '--nb_binder', help='chain name of the nb binder, capitalized')
 parser.add_argument("-q", '--nb_binder_seq', help='string of the nb sequence that is associated with a structure in the file')
@@ -39,8 +40,12 @@ weights_dict = {k : float(val) for k, val in zip(order_weights, weights_list)}
 print('----------')
 pdb = args.pdb_id
 weights_rounded = [str(round(float(weight),3)) for weight in weights_list]
-filename = f"{pdb}/{pdb}_{args.additional_description}_{args.optimizer}_{args.gd}_{args.logit}_{args.soft}_{args.hard}_{args.learning_rate}_models_{args.num_models}_weights_{'_'.join(weights_rounded)}_c{args.cores}_use_templates_{args.use_templates}_rm_template_ic_{args.rm_template_ic}_bias_{args.bias}_num_recycles_{args.recycles}.pdb"
+output_dir = args.output_dir
+bias_matrix_name = args.bias_matrix.split('bias_matrix/')[-1].split('.')[0]
+filename = f"{output_dir}/{pdb}/{pdb}_{args.additional_description}_{args.optimizer}_{args.gd}_{args.logit}_{args.soft}_{args.hard}_{args.learning_rate}_models_{args.num_models}_weights_{'_'.join(weights_rounded)}_c{args.cores}_use_templates_{args.use_templates}_rm_template_ic_{args.rm_template_ic}_bias_{args.bias}_bias_matrix_{bias_matrix_name}_num_recycles_{args.recycles}.pdb"
 print('PDB filename of final output:', filename)
+if not os.path.isdir(f"{output_dir}/{pdb}"):
+    raise FileNotFoundError(f"The directory '{output_dir}/{pdb}' does not exist.")
 print('----------')
 # set working directory
 try:

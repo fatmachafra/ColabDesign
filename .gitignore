@@ -16,3 +16,9 @@ af/examples/8ee2_2/*
 af/examples/initial_runs_pdbs/*
 af/examples/old_*/*
 af/examples/8ee2_*.sh
+af/examples/8ee2_3/*
+af/examples/bias_matrix/*
+af/examples/params_backup/*
+af/examples/*_submission_scripts/*
+af/examples/8ee2_4/*
+*.html
